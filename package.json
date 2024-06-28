@@ -1,0 +1,18 @@
+{
+  "name": "webflow-javascript-template",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "clean": "rimraf -rf dist",
+    "lint:fix": "eslint ./src --ext .js,.jsx --fix"
+  },
+  "devDependencies": {
+    "rimraf": "^3.0.2",
+    "vite": "^2.7.2",
+    "vite-plugin-glsl": "^0.1.1"
+  },
+  "dependencies": {
+    "gsap": "npm:@gsap/shockingly@^3.12.5"
+  }
+}
