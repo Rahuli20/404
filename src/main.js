@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { DragControls } from 'three/examples/jsm/controls/DragControls.js';
 import * as CANNON from 'cannon-es';
 
@@ -45,85 +44,84 @@ groundBody.position.y = -window.innerHeight / 2; // Position at the bottom of th
 groundBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), -Math.PI / 2); // Rotate to align with the world's x-axis
 world.addBody(groundBody);
 
-// Load GLB model
-const loader = new GLTFLoader();
-loader.load('https://cdn.jsdelivr.net/gh/Rahuli20/404@main/src/BURGER.glb', (gltf) => {
-  const model = gltf.scene;
-  const models = [];
-  const modelBodies = [];
+// Create cubes with physics
+const cubes = [];
+const cubeBodies = [];
 
-  for (let i = 0; i < 300; i++) {
-    const modelClone = model.clone();
-    modelClone.scale.set(10, 10, 10); // Set the custom scale for the model
-    modelClone.position.set(
-      (Math.random() - 0.5) * window.innerWidth,
-      (Math.random() * window.innerHeight / 2) + window.innerHeight / 2,
-      0
-    );
-    modelClone.castShadow = true; // Enable shadow casting
-    modelClone.receiveShadow = true; // Enable shadow receiving
-    scene.add(modelClone);
+const textureLoader = new THREE.TextureLoader();
+const texture = textureLoader.load('https://uploads-ssl.webflow.com/667ec7a0c58c8e9576e597ca/667edab80b7c577e45e2936d_texture.jpg'); // Replace with your texture path
+texture.wrapS = THREE.RepeatWrapping;
+texture.wrapT = THREE.RepeatWrapping;
+texture.repeat.set(0.1, 0.1); // Adjust repeat values as needed to control texture scale
 
-    const modelBox = new THREE.Box3().setFromObject(modelClone);
-    const modelSize = new THREE.Vector3();
-    modelBox.getSize(modelSize);
-    const halfExtents = new CANNON.Vec3(modelSize.x / 2, modelSize.y / 2, modelSize.z / 2);
+const cubeGeometry = new THREE.BoxGeometry(150, 150, 150);
+const cubeMaterial = new THREE.MeshPhongMaterial({ map: texture }); // Apply texture to material
 
-    const modelShape = new CANNON.Box(halfExtents);
-    const modelBody = new CANNON.Body({ mass: 5 });
-    modelBody.addShape(modelShape);
-    modelBody.position.copy(modelClone.position);
-    modelBody.linearDamping = 0.1; // Damping to reduce "floaty" feel
-    world.addBody(modelBody);
+for (let i = 0; i < 100; i++) {
+  const cube = new THREE.Mesh(cubeGeometry, cubeMaterial);
+  cube.position.set(
+    (Math.random() - 0.5) * window.innerWidth,
+    (Math.random() * window.innerHeight / 2) + window.innerHeight / 2,
+    0
+  );
+  cube.castShadow = true; // Enable shadow casting
+  cube.receiveShadow = true; // Enable shadow receiving
+  scene.add(cube);
 
-    models.push(modelClone);
-    modelBodies.push(modelBody);
+  const cubeShape = new CANNON.Box(new CANNON.Vec3(50, 50, 50));
+  const cubeBody = new CANNON.Body({ mass: 5 });
+  cubeBody.addShape(cubeShape);
+  cubeBody.position.copy(cube.position);
+  cubeBody.linearDamping = 0.1; // Damping to reduce "floaty" feel
+  world.addBody(cubeBody);
+
+  cubes.push(cube);
+  cubeBodies.push(cubeBody);
+}
+
+// Drag Controls
+const dragControls = new DragControls(cubes, camera, renderer.domElement);
+let selectedCube = null;
+let dragging = false;
+
+dragControls.addEventListener('dragstart', function (event) {
+  selectedCube = event.object;
+  dragging = true;
+});
+
+dragControls.addEventListener('drag', function (event) {
+  if (dragging && selectedCube) {
+    const index = cubes.indexOf(selectedCube);
+    const cubeBody = cubeBodies[index];
+    const newPos = new CANNON.Vec3(event.object.position.x, event.object.position.y, 0);
+    cubeBody.position.copy(newPos);
   }
+});
 
-  // Drag Controls
-  const dragControls = new DragControls(models, camera, renderer.domElement);
-  let selectedModel = null;
-  let dragging = false;
-
-  dragControls.addEventListener('dragstart', function (event) {
-    selectedModel = event.object;
-    dragging = true;
-  });
-
-  dragControls.addEventListener('drag', function (event) {
-    if (dragging && selectedModel) {
-      const index = models.indexOf(selectedModel);
-      const modelBody = modelBodies[index];
-      const newPos = new CANNON.Vec3(event.object.position.x, event.object.position.y, 0);
-      modelBody.position.copy(newPos);
-    }
-  });
-
-  dragControls.addEventListener('dragend', function () {
-    selectedModel = null;
-    dragging = false;
-  });
-
-  function animate() {
-    requestAnimationFrame(animate);
-
-    world.step(1 / 60);
-
-    models.forEach((model, i) => {
-      const modelBody = modelBodies[i];
-      model.position.copy(modelBody.position);
-      model.quaternion.copy(modelBody.quaternion);
-    });
-
-    renderer.render(scene, camera);
-  }
-
-  animate();
+dragControls.addEventListener('dragend', function () {
+  selectedCube = null;
+  dragging = false;
 });
 
 // Shadows
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap; // Soft shadows for better appearance
+
+function animate() {
+  requestAnimationFrame(animate);
+
+  world.step(1 / 60);
+
+  cubes.forEach((cube, i) => {
+    const cubeBody = cubeBodies[i];
+    cube.position.copy(cubeBody.position);
+    cube.quaternion.copy(cubeBody.quaternion);
+  });
+
+  renderer.render(scene, camera);
+}
+
+animate();
 
 // Handle window resize
 window.addEventListener('resize', () => {
